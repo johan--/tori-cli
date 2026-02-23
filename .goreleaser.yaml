@@ -26,6 +26,9 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+release:
+  prerelease: auto
+
 dockers:
   - id: linux-amd64
     goos: linux
@@ -60,6 +63,7 @@ docker_manifests:
       - "ghcr.io/thobiasn/tori-cli:{{ .Version }}-amd64"
       - "ghcr.io/thobiasn/tori-cli:{{ .Version }}-arm64"
   - name_template: "ghcr.io/thobiasn/tori-cli:latest"
+    skip_push: auto
     image_templates:
       - "ghcr.io/thobiasn/tori-cli:{{ .Version }}-amd64"
       - "ghcr.io/thobiasn/tori-cli:{{ .Version }}-arm64"
