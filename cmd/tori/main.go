@@ -72,7 +72,7 @@ func runAskpass(sock string) {
 func runVersion() {
 	fmt.Println("tori " + version)
 
-	if version == "dev" {
+	if version == "dev" || strings.Contains(version, "-") {
 		return
 	}
 
