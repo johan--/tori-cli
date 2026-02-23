@@ -300,7 +300,7 @@ window = "5m"
 severity = "warning"
 actions = ["notify"]
 
-[alerts.oom_kills]
+[alerts.mem_killed]
 condition = "log.count > 0"
 match = "OOM|out of memory"
 match_regex = true
@@ -325,7 +325,7 @@ url = "https://hooks.slack.com/services/..."
 # template = '{"text": "{{.Subject}}\n{{.Body}}\nSeverity: {{.Severity}} Status: {{.Status}}"}'
 ```
 
-Webhook template fields: `{{.Subject}}`, `{{.Body}}`, `{{.Severity}}` (warning/critical), `{{.Status}}` (firing/resolved/test).
+Webhook template fields: `{{.Subject}}`, `{{.Body}}`, `{{.Severity}}` (warning/critical), `{{.Status}}` (firing/resolved/test). All values are automatically JSON-escaped when using a custom template.
 
 **Email TLS modes:** `starttls` (port 587, upgrades to TLS after connect), `tls` (port 465, implicit TLS), or omit for local relay (no encryption). Authentication (`username`/`password`) requires TLS.
 
