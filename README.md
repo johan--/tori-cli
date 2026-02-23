@@ -147,13 +147,18 @@ docker run -d --name tori \
   ghcr.io/thobiasn/tori-cli:latest
 ```
 
-When running via Docker, set the host paths in your config to the mounted locations:
+When running via Docker, set the host paths and socket mode in your config:
 
 ```toml
+[socket]
+mode = "0666"    # required for Docker — allows host users to reach the socket
+
 [host]
 proc = "/host/proc"
 sys = "/host/sys"
 ```
+
+The socket is volume-mounted to the host at `/run/tori`, so SSH remains the auth gate — not file permissions.
 
 You can also inject the entire config via the `TORI_CONFIG` environment variable instead of mounting a file. This is useful for PaaS platforms like Dokploy or Coolify where you don't have easy access to the host filesystem — see `deploy/docker-compose.yml` for an example.
 
