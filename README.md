@@ -493,6 +493,7 @@ sudo rm /usr/local/bin/tori
 sudo rm /etc/systemd/system/tori.service
 sudo rm -rf /etc/tori /var/lib/tori /run/tori
 sudo userdel tori
+sudo groupdel tori 2>/dev/null   # may remain if other users were added to it
 ```
 
 For client-only installs, just remove the binary (`~/.local/bin/tori` or `/usr/local/bin/tori`) and config (`~/.config/tori/`).
