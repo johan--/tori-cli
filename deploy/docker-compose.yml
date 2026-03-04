@@ -101,7 +101,7 @@ services:
 
         # [alerts.oom_kills]
         # condition = "log.count > 0"
-        # match = "OOM|out of memory"        # regex match
+        # match = "\\bOOM\\b|\\bout of memory\\b"        # regex match
         # match_regex = true
         # window = "10m"
         # severity = "critical"
