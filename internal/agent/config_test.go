@@ -716,7 +716,7 @@ func TestLoadConfigLogAlertRegex(t *testing.T) {
 	os.WriteFile(path, []byte(`
 [alerts.oom]
 condition = "log.count > 0"
-match = "OOM|out of memory"
+match = "\\bOOM\\b|\\bout of memory\\b"
 match_regex = true
 window = "10m"
 severity = "critical"

@@ -272,11 +272,81 @@ if [ ! -f "${CONFIG_DIR}/config.toml" ]; then
 [collect]
 # interval = "10s"
 
-# [alerts.high_cpu]
-# condition = "host.cpu_percent > 90"
-# for = "1m"
+[alerts.container_down]
+condition = "container.state == 'exited'"
+for = "30s"
 # cooldown = "5m"
 # notify_cooldown = "5m"
+severity = "critical"
+actions = ["notify"]
+
+[alerts.high_cpu]
+condition = "host.cpu_percent > 90"
+for = "2m"
+# cooldown = "5m"
+# notify_cooldown = "5m"
+severity = "warning"
+actions = ["notify"]
+
+[alerts.high_memory]
+condition = "host.memory_percent > 85"
+for = "1m"
+severity = "warning"
+actions = ["notify"]
+
+[alerts.disk_space]
+condition = "host.disk_percent > 90"
+for = "0s"
+severity = "critical"
+actions = ["notify"]
+
+# [alerts.high_load]
+# condition = "host.load1 > 4"     # tune threshold to your CPU count
+# for = "5m"
+# severity = "warning"
+# actions = ["notify"]
+
+[alerts.high_swap]
+condition = "host.swap_percent > 80"
+for = "2m"
+severity = "warning"
+actions = ["notify"]
+
+[alerts.container_memory]
+condition = "container.memory_percent > 90"
+for = "1m"
+severity = "warning"
+actions = ["notify"]
+
+[alerts.unhealthy]
+condition = "container.health == 'unhealthy'"
+for = "30s"
+severity = "critical"
+actions = ["notify"]
+
+[alerts.restart_loop]
+condition = "container.restart_count > 5"
+severity = "critical"
+actions = ["notify"]
+
+[alerts.bad_exit]
+condition = "container.exit_code != 0"
+for = "0s"
+severity = "warning"
+actions = ["notify"]
+
+# [alerts.error_spike]
+# condition = "log.count > 10"
+# match = "error"                    # substring match (case-insensitive)
+# window = "5m"
+# severity = "warning"
+# actions = ["notify"]
+
+# [alerts.oom_kills]
+# condition = "log.count > 0"
+# match = "\\bOOM\\b|\\bout of memory\\b"        # regex match
+# match_regex = true
+# window = "10m"
 # severity = "critical"
 # actions = ["notify"]
 

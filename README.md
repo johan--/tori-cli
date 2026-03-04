@@ -304,7 +304,7 @@ actions = ["notify"]
 
 [alerts.mem_killed]
 condition = "log.count > 0"
-match = "OOM|out of memory"
+match = "\\bOOM\\b|\\bout of memory\\b"
 match_regex = true
 window = "10m"
 severity = "critical"

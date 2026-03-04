@@ -1468,7 +1468,7 @@ func TestLogAlertRegexMatch(t *testing.T) {
 	alerts := map[string]AlertConfig{
 		"oom": {
 			Condition:  "log.count > 0",
-			Match:      "OOM|out of memory",
+			Match:      `\bOOM\b|\bout of memory\b`,
 			MatchRegex: true,
 			Window:     Duration{10 * time.Minute},
 			Severity:   "critical",
@@ -1485,6 +1485,7 @@ func TestLogAlertRegexMatch(t *testing.T) {
 		{Timestamp: now, ContainerID: "aaa", ContainerName: "web", Stream: "stderr", Message: "OOM killed process 1234"},
 		{Timestamp: now, ContainerID: "bbb", ContainerName: "api", Stream: "stderr", Message: "out of memory allocating 1MB"},
 		{Timestamp: now, ContainerID: "ccc", ContainerName: "db", Stream: "stdout", Message: "normal log line"},
+		{Timestamp: now, ContainerID: "ddd", ContainerName: "bloom", Stream: "stderr", Message: "container bloomoord started"},
 	})
 
 	a.Evaluate(ctx, &MetricSnapshot{
@@ -1492,6 +1493,7 @@ func TestLogAlertRegexMatch(t *testing.T) {
 			{ID: "aaa", Name: "web", State: "running"},
 			{ID: "bbb", Name: "api", State: "running"},
 			{ID: "ccc", Name: "db", State: "running"},
+			{ID: "ddd", Name: "bloom", State: "running"},
 		},
 	})
 
@@ -1502,7 +1504,10 @@ func TestLogAlertRegexMatch(t *testing.T) {
 		t.Error("expected oom:bbb firing")
 	}
 
-	// "ccc" has no matching logs.
+	// "ccc" has no matching logs, "ddd" has "oom" as substring — should not match.
+	if inst := a.instances["oom:ddd"]; inst != nil && inst.state == stateFiring {
+		t.Error("oom:ddd should not fire — 'bloomoord' contains 'oom' as substring, not word boundary")
+	}
 	var count int
 	if err := s.db.QueryRow("SELECT COUNT(*) FROM alerts").Scan(&count); err != nil {
 		t.Fatal(err)
