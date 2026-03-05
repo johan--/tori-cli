@@ -518,6 +518,52 @@ For client-only installs, just remove the binary (`~/.local/bin/tori` or `/usr/l
 
 **Log alert windows and retention:** Log alert `window` values must be shorter than your `retention_days` — logs outside the retention window have been pruned and can't be counted. In practice, keep windows short (minutes to hours) for responsive alerting.
 
+## Troubleshooting
+
+<details>
+<summary><b>SSH connection fails with "connection lost" or "connection closed"</b></summary>
+
+tori connects to remote agents by forwarding a Unix socket over SSH. Some SSH servers (notably Synology DSM and other appliance-style Linux distributions) disable forwarding for non-root users by default.
+
+If local access works (`tori --socket /run/tori/tori.sock` on the server) but remote access fails (`tori user@host`), check the server's `/etc/ssh/sshd_config`. You may need to enable forwarding for your user:
+
+```
+Match User YOUR_USER
+    AllowTcpForwarding yes
+    AllowStreamLocalForwarding yes
+```
+
+Restart the SSH service after editing. On Synology, toggle SSH off/on in Control Panel > Terminal & SNMP.
+
+</details>
+
+<details>
+<summary><b>Docker: "Bind mount failed: '/run/tori' does not exist"</b></summary>
+
+The `/run/tori` directory must exist on the host before starting the container:
+
+```bash
+sudo mkdir -p /run/tori
+```
+
+On systems where `/run` is tmpfs (cleared on reboot), add this as a boot task. On Synology, use DSM Task Scheduler with a "Boot-up" triggered task.
+
+</details>
+
+<details>
+<summary><b>Docker: "permission denied" connecting to the socket</b></summary>
+
+If the agent runs in Docker, the socket is created as `root` inside the container. The compose file sets `mode = "0666"` to allow any host user to connect. If you're using a custom config, make sure it includes:
+
+```toml
+[socket]
+mode = "0666"
+```
+
+For bare metal installs, add your user to the `tori` group instead: `sudo usermod -aG tori $USER` (then re-login).
+
+</details>
+
 ## Requirements
 
 - Linux (the agent reads from `/proc` and `/sys`)
