@@ -183,6 +183,19 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return a, nil
 
+	case "y":
+		items := buildSelectableItems(a.groups, a.collapsed)
+		if a.cursor >= 0 && a.cursor < len(items) {
+			item := items[a.cursor]
+			g := a.groups[item.groupIdx]
+			if item.isProject {
+				yankToClipboard(g.name)
+			} else {
+				yankToClipboard(g.containers[item.contIdx].Name)
+			}
+		}
+		return a, nil
+
 	case "t":
 		return a, a.toggleTracking()
 

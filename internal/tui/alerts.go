@@ -300,6 +300,19 @@ func (a *App) handleAlertsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		}
 		return *a, nil
 
+	case "y":
+		if av.focus == sectionAlerts {
+			items := buildAlertList(s.Alerts, av.resolved, av.showResolved)
+			if av.alertCursor >= 0 && av.alertCursor < len(items) {
+				yankToClipboard(items[av.alertCursor].message)
+			}
+		} else {
+			if av.ruleCursor >= 0 && av.ruleCursor < len(av.rules) {
+				yankToClipboard(av.rules[av.ruleCursor].Condition)
+			}
+		}
+		return *a, nil
+
 	case "g":
 		a.pendingKey = "g"
 		return *a, nil

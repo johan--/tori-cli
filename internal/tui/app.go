@@ -561,12 +561,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, nil
 
-	case yankDoneMsg:
-		if s := a.session(); s != nil && s.Detail.expandModal != nil {
-			s.Detail.expandModal.yankStatus = "Yanked to clipboard"
-		}
-		return a, nil
-
 	case spinnerTickMsg:
 		a.spinnerFrame++
 		return a, spinnerTick()
