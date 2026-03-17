@@ -615,7 +615,7 @@ func renderDetailHelp(w int, searchActive bool, theme *Theme) string {
 	return renderHelpBar([]helpBinding{
 		{"esc", escLabel},
 		{"j/k", "scroll"},
-		{"f", "filter"},
+		{"/", "filter"},
 		{"s", "level"},
 		{"i", "info"},
 		{"?", "help"},

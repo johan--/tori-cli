@@ -445,6 +445,9 @@ The `[theme]` section overrides individual TUI colors. By default all colors use
 | Key | Action |
 |-----|--------|
 | `j`/`k` | Navigate containers |
+| `gg`/`G` | Jump to top/bottom |
+| `{`/`}` | Jump to previous/next project group |
+| `Ctrl+d`/`Ctrl+u` | Half-page down/up |
 | `Enter` | Open detail view |
 | `Space` | Expand/collapse compose group |
 | `t` | Toggle tracking for container/group |
@@ -455,22 +458,25 @@ The `[theme]` section overrides individual TUI colors. By default all colors use
 |-----|--------|
 | `Tab` | Switch focus between alerts and rules |
 | `j`/`k` | Navigate up/down |
+| `gg`/`G` | Jump to top/bottom |
 | `Enter` | Expand details |
 | `a` | Acknowledge alert |
 | `s` | Silence rule |
 | `t` | Test notification (rules section/dialog) |
 | `r` | Show/hide resolved alerts |
-| `g` | Go to container |
+| `gd` | Go to container |
 
 ### Detail View (Logs + Metrics)
 
 | Key | Action |
 |-----|--------|
 | `j`/`k` | Scroll logs |
+| `Ctrl+d`/`Ctrl+u` | Half-page scroll |
+| `gg` | Jump to oldest |
 | `G` | Jump to latest |
 | `Enter` | Expand log entry |
 | `s` | Cycle log level filter (ERR → WARN → INFO → DBUG → all) |
-| `f` | Open filter dialog (regex search, date/time range) |
+| `/` | Open filter dialog (regex search, date/time range) |
 | `i` | Toggle info overlay |
 | `Esc` | Clear active filter / back to dashboard |
 

@@ -82,7 +82,7 @@ func renderAlertDialog(a *App, s *Session, width, height int) string {
 	}
 	tipBindings = append(tipBindings, "s", "silence")
 	if instanceKeyContainerID(item.instanceKey) != "" {
-		tipBindings = append(tipBindings, "g", "container")
+		tipBindings = append(tipBindings, "gd", "container")
 	}
 	tipBindings = append(tipBindings, "j/k", "navigate", "esc", "close")
 
