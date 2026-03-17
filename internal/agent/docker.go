@@ -35,7 +35,7 @@ type DockerCollector struct {
 	tracked map[string]bool
 
 	// Periodic container disk size collection (Size: true is expensive).
-	sizeCollectN int            // counter for periodic size requests
+	sizeCollectN int              // counter for periodic size requests
 	cachedSizes  map[string]int64 // container ID → SizeRw (writable layer bytes)
 }
 
@@ -44,8 +44,8 @@ type inspectResult struct {
 	startedAt    int64
 	restartCount int
 	exitCode     int
-	cpuLimit     float64   // configured CPU limit in cores (0 = no limit)
-	memLimit     int64     // configured memory limit in bytes (0 = no limit)
+	cpuLimit     float64 // configured CPU limit in cores (0 = no limit)
+	memLimit     int64   // configured memory limit in bytes (0 = no limit)
 	cachedAt     time.Time
 }
 
@@ -64,13 +64,13 @@ func NewDockerCollector(cfg *DockerConfig) (*DockerCollector, error) {
 		return nil, fmt.Errorf("docker client: %w", err)
 	}
 	return &DockerCollector{
-		client:          c,
-		include:         cfg.Include,
-		exclude:         cfg.Exclude,
-		prevCPU:         make(map[string]cpuPrev),
-		inspectCache:    make(map[string]inspectResult),
+		client:       c,
+		include:      cfg.Include,
+		exclude:      cfg.Exclude,
+		prevCPU:      make(map[string]cpuPrev),
+		inspectCache: make(map[string]inspectResult),
 		tracked:      make(map[string]bool),
-		cachedSizes:     make(map[string]int64),
+		cachedSizes:  make(map[string]int64),
 	}, nil
 }
 
@@ -104,26 +104,20 @@ func (d *DockerCollector) ContainerProject(id string) string {
 // SetTracking updates the runtime tracking state.
 // If project is set, all known containers in that project are toggled.
 // If name is set, that single container is toggled.
+// Both tracked and explicitly-untracked entries are stored so that
+// auto-tracking does not override manual decisions.
 func (d *DockerCollector) SetTracking(name, project string, tracked bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if project != "" {
 		for _, c := range d.lastContainers {
 			if c.Project == project {
-				if tracked {
-					d.tracked[c.Name] = true
-				} else {
-					delete(d.tracked, c.Name)
-				}
+				d.tracked[c.Name] = tracked
 			}
 		}
 	}
 	if name != "" {
-		if tracked {
-			d.tracked[name] = true
-		} else {
-			delete(d.tracked, name)
-		}
+		d.tracked[name] = tracked
 	}
 }
 
@@ -134,23 +128,23 @@ func (d *DockerCollector) IsTracked(name string) bool {
 	return d.tracked[name]
 }
 
-// GetTrackingState returns the list of tracked container names.
-func (d *DockerCollector) GetTrackingState() []string {
+// GetTrackingState returns the full tracking map (name → tracked/untracked).
+func (d *DockerCollector) GetTrackingState() map[string]bool {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	names := make([]string, 0, len(d.tracked))
-	for name := range d.tracked {
-		names = append(names, name)
+	out := make(map[string]bool, len(d.tracked))
+	for name, tracked := range d.tracked {
+		out[name] = tracked
 	}
-	return names
+	return out
 }
 
 // LoadTrackingState bulk-loads persisted tracking state.
-func (d *DockerCollector) LoadTrackingState(containers []string) {
+func (d *DockerCollector) LoadTrackingState(state map[string]bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	for _, name := range containers {
-		d.tracked[name] = true
+	for name, tracked := range state {
+		d.tracked[name] = tracked
 	}
 }
 
@@ -168,17 +162,12 @@ type Container struct {
 	ExitCode     int
 }
 
-// SetFilters updates the include/exclude filter lists at runtime.
-func (d *DockerCollector) SetFilters(include, exclude []string) {
+// SetTrackingPolicy updates the auto-tracking policy at runtime.
+func (d *DockerCollector) SetTrackingPolicy(include, exclude []string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.include = include
 	d.exclude = exclude
-}
-
-// MatchFilter checks if a container name passes the include/exclude filters.
-func (d *DockerCollector) MatchFilter(name string) bool {
-	return d.matchFilter(name)
 }
 
 // Collect lists containers, gets stats for each, and returns metrics.
@@ -198,10 +187,10 @@ const statsWorkers = 4
 
 // statsWork describes a running container that needs stats fetched.
 type statsWork struct {
-	id, name, image     string
-	project, service    string
-	ir                  inspectResult
-	diskUsage           uint64
+	id, name, image  string
+	project, service string
+	ir               inspectResult
+	diskUsage        uint64
 }
 
 func (d *DockerCollector) Collect(ctx context.Context) ([]ContainerMetrics, []Container, error) {
@@ -218,17 +207,13 @@ func (d *DockerCollector) Collect(ctx context.Context) ([]ContainerMetrics, []Co
 	var tracked []Container // returned for log sync / alert eval
 	var pending []statsWork // running tracked containers needing stats
 
-	// Phase 1: Sequential — filter, inspect, categorize.
+	// Phase 1: Sequential — inspect, auto-track, categorize.
 	for _, c := range containers {
 		if ctx.Err() != nil {
 			return nil, nil, ctx.Err()
 		}
 
 		name := containerName(c.Names)
-		if !d.matchFilter(name) {
-			continue
-		}
-
 		image := truncate(c.Image, maxImageLen)
 		project := c.Labels["com.docker.compose.project"]
 		service := c.Labels["com.docker.compose.service"]
@@ -263,6 +248,22 @@ func (d *DockerCollector) Collect(ctx context.Context) ([]ContainerMetrics, []Co
 			ExitCode:     ir.exitCode,
 		}
 		all = append(all, ctr)
+
+		// Auto-track on first discovery. Manual toggles (already in map)
+		// are never overridden.
+		d.mu.RLock()
+		_, seen := d.tracked[name]
+		inc := d.include
+		exc := d.exclude
+		d.mu.RUnlock()
+		if !seen {
+			autoTrack := shouldAutoTrack(name, inc, exc)
+			d.mu.Lock()
+			if _, seen2 := d.tracked[name]; !seen2 {
+				d.tracked[name] = autoTrack
+			}
+			d.mu.Unlock()
+		}
 
 		if !d.IsTracked(name) {
 			continue
@@ -311,7 +312,7 @@ func (d *DockerCollector) Collect(ctx context.Context) ([]ContainerMetrics, []Co
 				m, err := d.containerStats(ctx, w.id, w.name, w.image, "running")
 				if err != nil {
 					slog.Warn("failed to get container stats", "container", w.name, "error", err)
-				m = &ContainerMetrics{
+					m = &ContainerMetrics{
 						ID: w.id, Name: w.name, Image: w.image, State: "running",
 					}
 				}
@@ -346,28 +347,38 @@ func (d *DockerCollector) Collect(ctx context.Context) ([]ContainerMetrics, []Co
 	d.projectMap = pm
 	d.mu.Unlock()
 
-	// Evict stale inspect cache entries for containers no longer present.
-	seen := make(map[string]bool, len(all))
+	// Evict stale entries for containers no longer present.
+	seenIDs := make(map[string]bool, len(all))
+	seenNames := make(map[string]bool, len(all))
 	for _, c := range all {
-		seen[c.ID] = true
+		seenIDs[c.ID] = true
+		seenNames[c.Name] = true
 	}
 	for id := range d.inspectCache {
-		if !seen[id] {
+		if !seenIDs[id] {
 			delete(d.inspectCache, id)
 		}
 	}
 	for id := range d.cachedSizes {
-		if !seen[id] {
+		if !seenIDs[id] {
 			delete(d.cachedSizes, id)
 		}
 	}
 	d.prevCPUMu.Lock()
 	for id := range d.prevCPU {
-		if !seen[id] {
+		if !seenIDs[id] {
 			delete(d.prevCPU, id)
 		}
 	}
 	d.prevCPUMu.Unlock()
+	// Prune tracking entries for containers that no longer exist.
+	d.mu.Lock()
+	for name := range d.tracked {
+		if !seenNames[name] {
+			delete(d.tracked, name)
+		}
+	}
+	d.mu.Unlock()
 
 	return metrics, tracked, nil
 }

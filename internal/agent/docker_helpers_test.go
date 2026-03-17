@@ -195,7 +195,7 @@ func TestContainerName(t *testing.T) {
 	}
 }
 
-func TestMatchFilter(t *testing.T) {
+func TestShouldAutoTrack(t *testing.T) {
 	tests := []struct {
 		name    string
 		include []string
@@ -203,21 +203,21 @@ func TestMatchFilter(t *testing.T) {
 		input   string
 		want    bool
 	}{
-		{"no filters", nil, nil, "web", true},
+		{"no filters", nil, nil, "web", false},
 		{"include match", []string{"web-*"}, nil, "web-app", true},
 		{"include no match", []string{"web-*"}, nil, "api-server", false},
-		{"exclude match", nil, []string{"test-*"}, "test-runner", false},
-		{"exclude no match", nil, []string{"test-*"}, "web", true},
-		{"include+exclude", []string{"web-*"}, []string{"web-test"}, "web-test", false},
+		{"include+exclude hit", []string{"web-*"}, []string{"web-test"}, "web-test", false},
 		{"include+exclude pass", []string{"web-*"}, []string{"web-test"}, "web-prod", true},
+		{"wildcard tracks all", []string{"*"}, nil, "anything", true},
+		{"wildcard with exclude", []string{"*"}, []string{"noisy-*"}, "noisy-logs", false},
+		{"wildcard exclude no match", []string{"*"}, []string{"noisy-*"}, "web", true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := &DockerCollector{include: tt.include, exclude: tt.exclude}
-			got := d.matchFilter(tt.input)
+			got := shouldAutoTrack(tt.input, tt.include, tt.exclude)
 			if got != tt.want {
-				t.Errorf("matchFilter(%q) = %v, want %v", tt.input, got, tt.want)
+				t.Errorf("shouldAutoTrack(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
 	}

@@ -98,24 +98,23 @@ func serviceIdentity(project, service, name string) (identProject, identService 
 	return "", name
 }
 
-// matchFilter checks if a container name matches include/exclude patterns.
-func (d *DockerCollector) matchFilter(name string) bool {
-	d.mu.RLock()
-	include := d.include
-	exclude := d.exclude
-	d.mu.RUnlock()
+// shouldAutoTrack determines whether a newly-discovered container should be
+// auto-tracked based on include and exclude patterns. If no include patterns
+// are set, nothing is auto-tracked. Use include = ["*"] to track everything.
+func shouldAutoTrack(name string, include, exclude []string) bool {
+	if len(include) == 0 {
+		return false
+	}
 
-	if len(include) > 0 {
-		matched := false
-		for _, pattern := range include {
-			if ok, _ := filepath.Match(pattern, name); ok {
-				matched = true
-				break
-			}
+	matched := false
+	for _, pattern := range include {
+		if ok, _ := filepath.Match(pattern, name); ok {
+			matched = true
+			break
 		}
-		if !matched {
-			return false
-		}
+	}
+	if !matched {
+		return false
 	}
 
 	for _, pattern := range exclude {

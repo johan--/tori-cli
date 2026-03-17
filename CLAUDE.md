@@ -161,7 +161,7 @@ Code is a liability, not an asset. Every line we write is a line we have to main
 - Non-reloadable fields (logged as warnings): storage path, socket path, socket mode, proc/sys paths, docker socket.
 - Alerter is rebuilt on reload — old alerts resolved via `ResolveAll()` before swap.
 - `EventWatcher.SetAlerter()` and `SocketServer.SetAlerter()` update the alerter reference under their own mutexes.
-- `DockerCollector.SetFilters()` updates include/exclude at runtime.
+- `DockerCollector.SetTrackingPolicy()` updates auto-tracking policy at runtime.
 
 ### Notification system
 
@@ -256,8 +256,10 @@ The alerter receives the same data already collected — no additional I/O.
 
 ### Docker runtime tracking
 
-- **No containers are tracked by default.** The `tracked` map starts empty. Users enable tracking per-container or per-group via the `t` key in the TUI dashboard.
-- `DockerCollector` has a single `tracked map[string]bool` keyed by container name.
-- `SetTracking(name, project, tracked)` — if project is set, iterates `lastContainers` and toggles all containers in that project individually. `IsTracked(name)` is a simple map lookup.
-- `Collect()` separates all containers (for TUI visibility) from tracked containers (for log sync/alert eval).
-- Config `include`/`exclude` is the permanent baseline; runtime tracking overlays on top.
+- **No containers are tracked by default.** Use `include` patterns to auto-track (e.g. `include = ["*"]` for everything).
+- `DockerCollector` has `tracked map[string]bool` keyed by container name. Presence = seen, value = tracked/untracked.
+- **Auto-tracking**: `shouldAutoTrack(name, include, exclude)` fires once per container on first discovery during `Collect()`. If no `include` patterns, nothing is auto-tracked. `exclude` always vetoes. Manual toggles (`SetTracking`) override and persist across restarts.
+- `SetTracking(name, project, tracked)` — stores both `true` (tracked) and `false` (explicitly untracked) entries. Never deletes from the map, so auto-tracking doesn't re-trigger.
+- `GetTrackingState()` returns `map[string]bool` (both tracked and untracked entries). `SaveTracking`/`LoadTracking` persist the `tracked` column (0 or 1) in `tracking_state`.
+- `Collect()` publishes all containers to `lastContainers` (TUI visibility) but only returns tracked containers for log sync/alert eval. Stale tracking entries for destroyed containers are pruned each cycle.
+- `include`/`exclude` control auto-tracking, not visibility. All containers are always visible in the TUI.
