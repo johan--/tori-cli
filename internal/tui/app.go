@@ -192,7 +192,8 @@ func (a *App) hasActiveSubModal() bool {
 		return det.expandModal != nil || det.filterModal != nil || det.infoOverlay
 	}
 	if a.view == viewAlerts {
-		return s.AlertsView.silenceModal != nil
+		av := &s.AlertsView
+		return av.silenceModal != nil || av.alertDialog || av.ruleDialog
 	}
 	return a.switcher
 }

@@ -239,14 +239,6 @@ func (a *App) handleAlertsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		a.leaveAlerts()
 		return *a, nil
 
-	case "1":
-		a.pendingKey = ""
-		a.leaveAlerts()
-		return *a, nil
-
-	case "2":
-		return *a, nil // already here
-
 	case "tab":
 		if av.focus == sectionAlerts {
 			av.focus = sectionRules
@@ -261,6 +253,22 @@ func (a *App) handleAlertsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 
 	case "k", "up":
 		a.alertsNavigate(-1)
+		return *a, nil
+
+	case "ctrl+d":
+		half := a.height / 2
+		if half < 1 {
+			half = 1
+		}
+		a.alertsNavigate(half)
+		return *a, nil
+
+	case "ctrl+u":
+		half := a.height / 2
+		if half < 1 {
+			half = 1
+		}
+		a.alertsNavigate(-half)
 		return *a, nil
 
 	case "r":

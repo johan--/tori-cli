@@ -33,6 +33,46 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 
+	// Server switcher captures all keys when active.
+	if a.switcher {
+		return a.handleSwitcherKey(key)
+	}
+
+	// Global view/server navigation (blocked by sub-modals).
+	if !a.hasActiveSubModal() {
+		switch key {
+		case "S":
+			if len(a.sessions) > 1 {
+				a.switcher = true
+				for i, name := range a.sessionOrder {
+					if name == a.activeSession {
+						a.switcherCursor = i
+						break
+					}
+				}
+			}
+			return a, nil
+		case "1":
+			a.pendingKey = ""
+			switch a.view {
+			case viewDetail:
+				a.leaveDetail()
+			case viewAlerts:
+				a.leaveAlerts()
+			}
+			return a, nil
+		case "2":
+			a.pendingKey = ""
+			if a.view == viewDetail {
+				a.leaveDetail()
+			}
+			if a.view != viewAlerts {
+				return a, a.enterAlerts()
+			}
+			return a, nil
+		}
+	}
+
 	// Detail view captures its own keys.
 	if a.view == viewDetail {
 		return a.handleDetailKey(msg)
@@ -53,11 +93,6 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Fall through to process key normally.
 	}
 
-	// Server switcher.
-	if a.switcher {
-		return a.handleSwitcherKey(key)
-	}
-
 	// Zoom time window.
 	if key == "+" || key == "=" || key == "-" {
 		if cmd := a.handleZoom(key); cmd != nil {
@@ -67,19 +102,6 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch key {
-	case "S":
-		if len(a.sessions) > 1 {
-			a.switcher = true
-			// Set switcher cursor to current active session.
-			for i, name := range a.sessionOrder {
-				if name == a.activeSession {
-					a.switcherCursor = i
-					break
-				}
-			}
-		}
-		return a, nil
-
 	case "j", "down":
 		items := buildSelectableItems(a.groups, a.collapsed)
 		max := len(items) - 1
@@ -202,14 +224,6 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		a.pendingKey = ""
 		return a.enterDetail()
-
-	case "1":
-		// Already on dashboard.
-		return a, nil
-
-	case "2":
-		a.pendingKey = ""
-		return a, a.enterAlerts()
 	}
 
 	return a, nil
@@ -227,6 +241,12 @@ func (a *App) handleSwitcherKey(key string) (App, tea.Cmd) {
 		}
 	case "enter":
 		name := a.sessionOrder[a.switcherCursor]
+		// Return to dashboard when switching servers from detail/alerts.
+		if a.view == viewDetail {
+			a.leaveDetail()
+		} else if a.view == viewAlerts {
+			a.leaveAlerts()
+		}
 		a.activeSession = name
 		// Rebuild groups for newly selected session.
 		if s := a.session(); s != nil {
