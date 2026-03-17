@@ -1,10 +1,15 @@
 package tui
 
 import (
+	"encoding/base64"
+	"os"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+// yankDoneMsg signals that a yank-to-clipboard operation completed.
+type yankDoneMsg struct{}
 
 // handleDetailKey handles keys when the detail view is active.
 func (a *App) handleDetailKey(msg tea.KeyMsg) (App, tea.Cmd) {
@@ -33,6 +38,24 @@ func (a *App) handleDetailKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return *a, nil
 	}
 
+	// Chord resolution: gg = jump to oldest.
+	if a.pendingKey == "g" {
+		a.pendingKey = ""
+		if key == "g" {
+			data := det.filteredData()
+			innerH := logAreaHeight(a, det, s)
+			maxScroll := len(data) - innerH
+			if maxScroll < 0 {
+				maxScroll = 0
+			}
+			det.logScroll = maxScroll
+			det.logCursor = 0
+			det.logPaused = true
+			return *a, nil
+		}
+		// Fall through to process key normally.
+	}
+
 	// Zoom.
 	if key == "+" || key == "=" || key == "-" {
 		if cmd := a.handleZoom(key); cmd != nil {
@@ -50,6 +73,7 @@ func (a *App) handleDetailKey(msg tea.KeyMsg) (App, tea.Cmd) {
 			det.filterTo = 0
 			return *a, refetchLogs(det, s.Client, s.RetentionDays)
 		}
+		a.pendingKey = ""
 		return *a, a.leaveDetail()
 
 	case "s":
@@ -70,7 +94,11 @@ func (a *App) handleDetailKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		det.resetLogs()
 		return *a, fireSearch(det, s.Client, s.RetentionDays)
 
-	case "f":
+	case "g":
+		a.pendingKey = "g"
+		return *a, nil
+
+	case "/":
 		now := time.Now()
 		m := &logFilterModal{
 			text:     det.searchText,
@@ -132,6 +160,35 @@ func (a *App) handleDetailKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		} else if det.logScroll < maxScroll {
 			det.logScroll++
 		}
+	case "ctrl+d":
+		half := visibleCount / 2
+		if half < 1 {
+			half = 1
+		}
+		for i := 0; i < half; i++ {
+			if det.logCursor < visibleCount-1 {
+				det.logCursor++
+			} else if det.logScroll > 0 {
+				det.logScroll--
+			}
+		}
+		// Resume live tail if we reached the bottom.
+		if det.logPaused && det.logScroll == 0 && det.logCursor >= visibleCount-1 {
+			det.resetLogPosition()
+		}
+	case "ctrl+u":
+		det.logPaused = true
+		half := visibleCount / 2
+		if half < 1 {
+			half = 1
+		}
+		for i := 0; i < half; i++ {
+			if det.logCursor > 0 {
+				det.logCursor--
+			} else if det.logScroll < maxScroll {
+				det.logScroll++
+			}
+		}
 	case "enter":
 		if det.logCursor >= 0 && len(data) > 0 {
 			idx := start + det.logCursor
@@ -179,7 +236,7 @@ func updateFilterModal(det *DetailState, s *Session, key string, cfg DisplayConf
 		return refetchLogs(det, s.Client, s.RetentionDays)
 	case "esc":
 		det.filterModal = nil
-	case "f":
+	case "/":
 		if m.focus != 0 {
 			det.filterModal = nil
 		} else if len(m.text) < 128 {
@@ -262,9 +319,19 @@ func updateFilterModal(det *DetailState, s *Session, key string, cfg DisplayConf
 // updateExpandModal handles keys inside the log expand modal.
 func updateExpandModal(det *DetailState, a *App, s *Session, key string) tea.Cmd {
 	m := det.expandModal
+	if key != "y" {
+		m.yankStatus = ""
+	}
 	switch key {
 	case "esc", "enter":
 		det.expandModal = nil
+	case "y":
+		msg := m.entry.Message
+		return func() tea.Msg {
+			b64 := base64.StdEncoding.EncodeToString([]byte(msg))
+			os.Stderr.WriteString("\033]52;c;" + b64 + "\a")
+			return yankDoneMsg{}
+		}
 	case "n":
 		m.scroll++
 	case "p":

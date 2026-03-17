@@ -208,6 +208,23 @@ func (a *App) handleAlertsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return a.handleRuleDialogKey(key)
 	}
 
+	// Chord resolution.
+	if a.pendingKey == "g" {
+		a.pendingKey = ""
+		if key == "g" {
+			if av.focus == sectionAlerts {
+				av.alertCursor = 0
+			} else {
+				av.ruleCursor = 0
+			}
+			return *a, nil
+		}
+		if key == "d" {
+			return a.goToAlertContainer()
+		}
+		// Fall through to process key normally.
+	}
+
 	// Zoom (shared with dashboard/detail).
 	if key == "+" || key == "=" || key == "-" {
 		if cmd := a.handleZoom(key); cmd != nil {
@@ -218,10 +235,12 @@ func (a *App) handleAlertsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 
 	switch key {
 	case "esc":
+		a.pendingKey = ""
 		a.leaveAlerts()
 		return *a, nil
 
 	case "1":
+		a.pendingKey = ""
 		a.leaveAlerts()
 		return *a, nil
 
@@ -282,7 +301,21 @@ func (a *App) handleAlertsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return *a, nil
 
 	case "g":
-		return a.goToAlertContainer()
+		a.pendingKey = "g"
+		return *a, nil
+
+	case "G":
+		if av.focus == sectionAlerts {
+			items := buildAlertList(s.Alerts, av.resolved, av.showResolved)
+			if last := len(items) - 1; last >= 0 {
+				av.alertCursor = last
+			}
+		} else {
+			if last := len(av.rules) - 1; last >= 0 {
+				av.ruleCursor = last
+			}
+		}
+		return *a, nil
 	}
 
 	return *a, nil
@@ -296,6 +329,19 @@ func (a *App) handleAlertDialogKey(key string) (App, tea.Cmd) {
 	}
 	av := &s.AlertsView
 
+	// Chord resolution.
+	if a.pendingKey == "g" {
+		a.pendingKey = ""
+		if key == "g" {
+			av.alertCursor = 0
+			return *a, nil
+		}
+		if key == "d" {
+			return a.goToAlertContainer()
+		}
+		// Fall through to process key normally.
+	}
+
 	switch key {
 	case "esc", "enter":
 		av.alertDialog = false
@@ -308,7 +354,7 @@ func (a *App) handleAlertDialogKey(key string) (App, tea.Cmd) {
 	case "s":
 		return a.handleAlertsSilence()
 	case "g":
-		return a.goToAlertContainer()
+		a.pendingKey = "g"
 	}
 	return *a, nil
 }
@@ -388,6 +434,7 @@ func (a *App) goToAlertContainer() (App, tea.Cmd) {
 	if containerID == "" {
 		return *a, nil
 	}
+	a.pendingKey = ""
 	return a.enterDetailByContainerID(containerID)
 }
 

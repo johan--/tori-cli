@@ -297,11 +297,13 @@ func renderHelpModal(a *App, _ *Session, width, height int) string {
 		bindings = []binding{
 			{"esc", "back to dashboard"},
 			{"j/k", "scroll logs"},
-			{"h/l", "navigate filter fields"},
+			{"ctrl+d/u", "half-page scroll"},
+			{"gg", "jump to oldest"},
 			{"G", "jump to latest"},
+			{"h/l", "navigate filter fields"},
 			{"enter", "expand log entry"},
 			{"s", "cycle level filter"},
-			{"f", "open filter dialog"},
+			{"/", "open filter dialog"},
 			{"+/-", "zoom time range"},
 			{"i", "toggle info overlay"},
 		}
@@ -310,13 +312,14 @@ func renderHelpModal(a *App, _ *Session, width, height int) string {
 		bindings = []binding{
 			{"tab", "switch focus"},
 			{"j/k", "navigate"},
+			{"gg/G", "jump to top/bottom"},
 			{"h/l", "navigate modal"},
 			{"enter", "expand details"},
 			{"a", "acknowledge alert"},
 			{"s", "silence rule/alert"},
 			{"t", "test notification"},
 			{"r", "show/hide resolved"},
-			{"g", "go to container"},
+			{"gd", "go to container"},
 			{"1", "dashboard view"},
 			{"q", "quit"},
 		}
@@ -324,6 +327,9 @@ func renderHelpModal(a *App, _ *Session, width, height int) string {
 	default: // dashboard
 		bindings = []binding{
 			{"j/k", "navigate containers"},
+			{"gg/G", "jump to top/bottom"},
+			{"{/}", "jump project"},
+			{"ctrl+d/u", "half-page"},
 			{"enter", "open detail view"},
 			{"space", "expand/collapse project"},
 			{"t", "track container"},

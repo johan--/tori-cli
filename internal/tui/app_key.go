@@ -43,6 +43,16 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a.handleAlertsKey(msg)
 	}
 
+	// Chord resolution: gg = jump to top.
+	if a.pendingKey == "g" {
+		a.pendingKey = ""
+		if key == "g" {
+			a.cursor = 0
+			return a, nil
+		}
+		// Fall through to process key normally.
+	}
+
 	// Server switcher.
 	if a.switcher {
 		return a.handleSwitcherKey(key)
@@ -103,10 +113,81 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return a, nil
 
+	case "g":
+		a.pendingKey = "g"
+		return a, nil
+
+	case "G":
+		items := buildSelectableItems(a.groups, a.collapsed)
+		if last := len(items) - 1; last >= 0 {
+			a.cursor = last
+		}
+		return a, nil
+
+	case "}":
+		items := buildSelectableItems(a.groups, a.collapsed)
+		found := false
+		for i := a.cursor + 1; i < len(items); i++ {
+			if items[i].isProject {
+				a.cursor = i
+				found = true
+				break
+			}
+		}
+		if !found {
+			if last := len(items) - 1; last >= 0 {
+				a.cursor = last
+			}
+		}
+		return a, nil
+
+	case "{":
+		items := buildSelectableItems(a.groups, a.collapsed)
+		found := false
+		for i := a.cursor - 1; i >= 0; i-- {
+			if items[i].isProject {
+				a.cursor = i
+				found = true
+				break
+			}
+		}
+		if !found {
+			a.cursor = 0
+		}
+		return a, nil
+
+	case "ctrl+d":
+		items := buildSelectableItems(a.groups, a.collapsed)
+		max := len(items) - 1
+		if max < 0 {
+			return a, nil
+		}
+		half := a.height / 2
+		if half < 1 {
+			half = 1
+		}
+		a.cursor += half
+		if a.cursor > max {
+			a.cursor = max
+		}
+		return a, nil
+
+	case "ctrl+u":
+		half := a.height / 2
+		if half < 1 {
+			half = 1
+		}
+		a.cursor -= half
+		if a.cursor < 0 {
+			a.cursor = 0
+		}
+		return a, nil
+
 	case "t":
 		return a, a.toggleTracking()
 
 	case "enter":
+		a.pendingKey = ""
 		return a.enterDetail()
 
 	case "1":
@@ -114,6 +195,7 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case "2":
+		a.pendingKey = ""
 		return a, a.enterAlerts()
 	}
 

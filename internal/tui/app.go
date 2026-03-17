@@ -123,6 +123,7 @@ type App struct {
 	spinnerFrame int
 	birdBlink    bool // true = bird eye closed (data just arrived)
 	helpModal    bool
+	pendingKey   string
 
 	// Connection lifecycle.
 	ctx              *appCtx
@@ -557,6 +558,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case testNotifyDoneMsg:
 		if s := a.sessions[msg.server]; s != nil && s.AlertsView.ruleDialog {
 			s.AlertsView.testNotifyStatus = msg.status
+		}
+		return a, nil
+
+	case yankDoneMsg:
+		if s := a.session(); s != nil && s.Detail.expandModal != nil {
+			s.Detail.expandModal.yankStatus = "Yanked to clipboard"
 		}
 		return a, nil
 
