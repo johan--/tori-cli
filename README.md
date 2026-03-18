@@ -5,7 +5,9 @@
 [![GitHub Release](https://img.shields.io/github/v/release/thobiasn/tori-cli)](https://github.com/thobiasn/tori-cli/releases)
 [![License](https://img.shields.io/github/license/thobiasn/tori-cli)](LICENSE)
 
-Remote server monitoring without the infrastructure. A single binary and an SSH connection — metrics, logs, and alerts for your Docker hosts.
+Monitoring for self-hosters who don't want to run infrastructure to monitor their infrastructure.
+
+If you're running Docker on a few VPSes and the Grafana/Prometheus/Loki stack feels like overkill, tori gives you metrics, logs, and alerts in a single binary that uses less memory than most of the containers it watches. No web dashboards to host, no ports to open, no extra attack surface. An agent on each server, an SSH connection from your terminal.
 
 **[toricli.sh](https://toricli.sh)** · [Releases](https://github.com/thobiasn/tori-cli/releases) · [Issues](https://github.com/thobiasn/tori-cli/issues)
 
@@ -13,14 +15,13 @@ Remote server monitoring without the infrastructure. A single binary and an SSH 
 
 ## Features
 
+- **No exposed ports** — all communication over SSH to a Unix socket. No HTTP server, nothing to firewall
+- **Single binary, minimal footprint** — one process, typically under 50MB of memory, SQLite for storage. No stack to deploy
+- **Alerting** — configurable rules for host metrics, container state, and log patterns. Email and webhook notifications, even when you're not connected
 - Host metrics — CPU, memory, disk, network, swap, load averages
 - Docker container monitoring — status, stats, health checks, restart tracking
-- Remote log tailing with regex search, log level filtering, match highlighting, and date/time filtering
-- Alerting with configurable rules, email (SMTP), and webhook notifications
-- SQLite storage with configurable retention
-- Multi-server support — monitor multiple remote hosts from one terminal
-- Single binary, zero runtime dependencies
-- No exposed ports — all communication over SSH
+- Log tailing with regex search, level filtering, match highlighting, and date/time range filters
+- Multi-server support — monitor multiple hosts from one terminal, switch instantly
 
 ## How It Works
 
@@ -81,7 +82,8 @@ Connect:
 tori
 ```
 
-No containers are tracked yet — press `t` on a container or compose group to start collecting metrics, logs, and alerts for it. You can also use `include`/`exclude` patterns in the agent config to auto-track containers on discovery (e.g. `include = ["*"]` to track everything). Tracking state is persisted and survives agent restarts.
+> [!NOTE]
+> After connecting, **no containers are tracked by default**. Press `t` on a container or compose group to start collecting metrics, logs, and alerts for it. To auto-track containers on discovery, add `include` patterns to the agent config (e.g. `include = ["*"]` for everything). Tracking state persists across agent restarts.
 
 ## Installation
 
@@ -515,11 +517,11 @@ For client-only installs, just remove the binary (`~/.local/bin/tori` or `/usr/l
 
 **Log contents:** tori stores container logs in SQLite. These may contain sensitive application data (tokens, user info, errors with PII). The database file at `/var/lib/tori/tori.db` should have restrictive permissions and the retention policy should be set appropriately.
 
-## Operational Notes
+## Keeping Storage in Check
 
-**Storage and chatty containers:** All logs from tracked containers are stored in SQLite for the full `retention_days` window (default: 7 days). High-volume containers can grow the database significantly. If storage is a concern, reduce `retention_days` in the agent config. You can also be selective about which containers you track — the `t` key in the dashboard toggles tracking per-container, and only tracked containers have their logs stored.
+All logs from tracked containers are stored in SQLite for the full `retention_days` window (default: 7 days). High-volume containers can grow the database significantly. If storage is a concern, reduce `retention_days` in the agent config. You can also be selective about which containers you track — the `t` key in the dashboard toggles tracking per-container, and only tracked containers have their logs stored.
 
-**Log alert windows and retention:** Log alert `window` values must be shorter than your `retention_days` — logs outside the retention window have been pruned and can't be counted. In practice, keep windows short (minutes to hours) for responsive alerting.
+Log alert `window` values must be shorter than your `retention_days` — logs outside the retention window have been pruned and can't be counted. In practice, keep windows short (minutes to hours) for responsive alerting.
 
 ## Troubleshooting
 
