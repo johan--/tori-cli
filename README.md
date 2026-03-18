@@ -5,9 +5,9 @@
 [![GitHub Release](https://img.shields.io/github/v/release/thobiasn/tori-cli)](https://github.com/thobiasn/tori-cli/releases)
 [![License](https://img.shields.io/github/license/thobiasn/tori-cli)](LICENSE)
 
-Monitoring for self-hosters who don't want to run infrastructure to monitor their infrastructure.
+Docker server monitoring without the stack. Metrics, logs, and alerts — single binary, SSH-only, nothing to deploy.
 
-If you're running Docker on a few VPSes and the Grafana/Prometheus/Loki stack feels like overkill, tori gives you metrics, logs, and alerts in a single binary that uses less memory than most of the containers it watches. No web dashboards to host, no ports to open, no extra attack surface. An agent on each server, an SSH connection from your terminal.
+If you're running Docker and a full monitoring stack feels like overkill, tori gives you metrics, logs, and alerts in a single binary that uses less memory than most of the containers it watches. Install on your server, add a notification channel, and you're covered — tori watches your containers 24/7 and alerts you when something breaks, even when you're not connected. No web dashboards to host, no ports to open, no extra attack surface.
 
 **[toricli.sh](https://toricli.sh)** · [Releases](https://github.com/thobiasn/tori-cli/releases) · [Issues](https://github.com/thobiasn/tori-cli/issues)
 
@@ -60,30 +60,47 @@ tori has two parts. The **agent** runs on your server collecting metrics, tailin
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/thobiasn/tori-cli/main/deploy/install.sh | sudo sh
+```
+
+Edit `/etc/tori/config.toml` to track all containers and get notified when something breaks:
+
+```toml
+[docker]
+include = ["*"]    # track everything (or use patterns like "myapp-*")
+
+[alerts.container_down]
+condition = "container.state == 'exited'"
+for = "30s"
+severity = "critical"
+actions = ["notify"]
+
+# add [notify.email] or [[notify.webhooks]] — see Configuration below
+```
+
+Start the agent:
+
+```bash
 sudo systemctl enable --now tori
 ```
+
+That's it. tori is now collecting metrics, tailing logs, and alerting on your containers — even when you're not connected.
 
 ### On your machine
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/thobiasn/tori-cli/main/deploy/install.sh | sh -s -- --client
+tori user@your-server.com
 ```
 
-Add a server to `~/.config/tori/config.toml`:
+Or add servers to `~/.config/tori/config.toml` for persistent config:
 
 ```toml
 [servers.prod]
 host = "user@prod.example.com"
 ```
 
-Connect:
-
-```bash
-tori
-```
-
-> [!NOTE]
-> After connecting, **no containers are tracked by default**. Press `t` on a container or compose group to start collecting metrics, logs, and alerts for it. To auto-track containers on discovery, add `include` patterns to the agent config (e.g. `include = ["*"]` for everything). Tracking state persists across agent restarts.
+> [!TIP]
+> You can also selectively track containers from the TUI — press `t` on any container or compose group. Tracking state persists across agent restarts.
 
 ## Installation
 
@@ -193,6 +210,17 @@ curl -fsSL https://raw.githubusercontent.com/thobiasn/tori-cli/main/deploy/insta
 ```
 
 Installs to `~/.local/bin/tori` (or `/usr/local/bin/tori` if run as root).
+
+</details>
+
+<details>
+<summary><b>Arch Linux (AUR)</b></summary>
+
+```bash
+yay -S tori-cli-bin
+```
+
+This installs the full package (binary + systemd service). For client-only installs, use the install script above instead.
 
 </details>
 
@@ -475,7 +503,7 @@ The `[theme]` section overrides individual TUI colors. By default all colors use
 | Key | Action |
 |-----|--------|
 | `Enter` | Expand log entry |
-| `s` | Cycle log level filter |
+| `s` | Cycle log level filter (ERR → WARN → INFO → DBUG → all) |
 | `/` | Open filter dialog (regex search, date/time range) |
 | `i` | Toggle info overlay |
 
