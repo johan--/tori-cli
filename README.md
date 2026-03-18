@@ -460,6 +460,12 @@ The `[theme]` section overrides individual TUI colors. By default all colors use
 | `graph_cpu` | `12` | CPU sparkline |
 | `graph_mem` | `13` | Memory sparkline |
 
+Because tori defaults to ANSI colors, it automatically inherits your terminal's color scheme:
+
+![Tokyo Night](https://github.com/user-attachments/assets/59fdca1f-7d3e-489f-9028-076ef3385e23)
+![Rosé Pine](https://github.com/user-attachments/assets/64054c43-b563-4199-9cc6-6ef86554692e)
+![Osaka Jade](https://github.com/user-attachments/assets/ac245a78-48b7-4288-be21-230314ccf748)
+
 ## Keybindings
 
 ### Navigation (all views)
