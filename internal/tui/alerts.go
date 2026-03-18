@@ -256,19 +256,11 @@ func (a *App) handleAlertsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return *a, nil
 
 	case "ctrl+d":
-		half := a.height / 2
-		if half < 1 {
-			half = 1
-		}
-		a.alertsNavigate(half)
+		a.alertsNavigate(halfPage(a.height))
 		return *a, nil
 
 	case "ctrl+u":
-		half := a.height / 2
-		if half < 1 {
-			half = 1
-		}
-		a.alertsNavigate(-half)
+		a.alertsNavigate(-halfPage(a.height))
 		return *a, nil
 
 	case "r":
@@ -582,29 +574,9 @@ func (a *App) alertsNavigate(delta int) {
 
 	if av.focus == sectionAlerts {
 		items := buildAlertList(s.Alerts, av.resolved, av.showResolved)
-		max := len(items) - 1
-		if max < 0 {
-			max = 0
-		}
-		av.alertCursor += delta
-		if av.alertCursor < 0 {
-			av.alertCursor = 0
-		}
-		if av.alertCursor > max {
-			av.alertCursor = max
-		}
+		clampNav(&av.alertCursor, delta, len(items))
 	} else {
-		max := len(av.rules) - 1
-		if max < 0 {
-			max = 0
-		}
-		av.ruleCursor += delta
-		if av.ruleCursor < 0 {
-			av.ruleCursor = 0
-		}
-		if av.ruleCursor > max {
-			av.ruleCursor = max
-		}
+		clampNav(&av.ruleCursor, delta, len(av.rules))
 	}
 }
 
@@ -616,12 +588,7 @@ func (a *App) clampAlertsCursor() {
 	}
 	av := &s.AlertsView
 	items := buildAlertList(s.Alerts, av.resolved, av.showResolved)
-	if av.alertCursor >= len(items) {
-		av.alertCursor = len(items) - 1
-	}
-	if av.alertCursor < 0 {
-		av.alertCursor = 0
-	}
+	clampNav(&av.alertCursor, 0, len(items))
 }
 
 // enterDetailByContainerID navigates to the detail view for a specific container.
