@@ -1619,6 +1619,114 @@ func TestLogAlertNilContainersDoesNotFalseResolve(t *testing.T) {
 	}
 }
 
+func TestContainerCPULimitPercentAlert(t *testing.T) {
+	alerts := map[string]AlertConfig{
+		"cpu_limit": {
+			Condition: "container.cpu_limit_percent > 90",
+			Severity:  "critical",
+			Actions:   []string{"notify"},
+		},
+	}
+	a, _ := testAlerter(t, alerts)
+	ctx := context.Background()
+	a.now = func() time.Time { return time.Now() }
+
+	// Container with CPUPercent=180% and CPULimit=2 cores → 90% of limit, should NOT fire.
+	a.Evaluate(ctx, &MetricSnapshot{
+		Containers: []ContainerMetrics{{ID: "a", Name: "web", State: "running", CPUPercent: 180, CPULimit: 2}},
+	})
+	if inst := a.instances["cpu_limit:a"]; inst != nil && inst.state == stateFiring {
+		t.Error("expected not firing at exactly 90% (threshold is >90)")
+	}
+
+	// CPUPercent=182 and CPULimit=2 → 91%, should fire.
+	a.Evaluate(ctx, &MetricSnapshot{
+		Containers: []ContainerMetrics{{ID: "a", Name: "web", State: "running", CPUPercent: 182, CPULimit: 2}},
+	})
+	if inst := a.instances["cpu_limit:a"]; inst == nil || inst.state != stateFiring {
+		t.Error("expected firing at 91% of limit")
+	}
+
+	// CPULimit=0 (no limit) → cpu_limit_percent returns 0, should not fire.
+	a2, _ := testAlerter(t, alerts)
+	a2.now = func() time.Time { return time.Now() }
+	a2.Evaluate(ctx, &MetricSnapshot{
+		Containers: []ContainerMetrics{{ID: "b", Name: "api", State: "running", CPUPercent: 500, CPULimit: 0}},
+	})
+	if inst := a2.instances["cpu_limit:b"]; inst != nil && inst.state == stateFiring {
+		t.Error("expected not firing when CPULimit=0")
+	}
+}
+
+func TestContainerMemoryPercentAlert(t *testing.T) {
+	alerts := map[string]AlertConfig{
+		"high_mem": {
+			Condition: "container.memory_percent > 80",
+			Severity:  "warning",
+			Actions:   []string{"notify"},
+		},
+	}
+	a, _ := testAlerter(t, alerts)
+	ctx := context.Background()
+	a.now = func() time.Time { return time.Now() }
+
+	a.Evaluate(ctx, &MetricSnapshot{
+		Containers: []ContainerMetrics{
+			{ID: "a", Name: "web", State: "running", MemPercent: 85},
+			{ID: "b", Name: "api", State: "running", MemPercent: 60},
+		},
+	})
+
+	if inst := a.instances["high_mem:a"]; inst == nil || inst.state != stateFiring {
+		t.Error("expected high_mem:a to be firing at 85%")
+	}
+	if inst := a.instances["high_mem:b"]; inst != nil && inst.state == stateFiring {
+		t.Error("expected high_mem:b NOT firing at 60%")
+	}
+}
+
+func TestAdoptFiringOrphanResolution(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+
+	// Insert a firing alert for a rule that will no longer exist.
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO alerts (rule_name, severity, condition, instance_key, fired_at, message) VALUES (?, ?, ?, ?, ?, ?)`,
+		"old_rule", "warning", "host.cpu_percent > 90", "old_rule", time.Now().Unix(), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create alerter with only "new_rule" — old_rule is orphaned.
+	n := NewNotifier(&NotifyConfig{})
+	a, err := NewAlerter(map[string]AlertConfig{
+		"new_rule": {Condition: "host.cpu_percent > 90", Severity: "critical", Actions: []string{"notify"}},
+	}, s, n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.now = func() time.Time { return time.Now() }
+
+	if err := a.AdoptFiring(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// old_rule alert should be resolved (orphan).
+	var resolvedAt *int64
+	err = s.db.QueryRowContext(ctx, "SELECT resolved_at FROM alerts WHERE rule_name = 'old_rule'").Scan(&resolvedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolvedAt == nil {
+		t.Error("orphaned alert should be resolved")
+	}
+
+	// No instances should be adopted for old_rule.
+	if _, ok := a.instances["old_rule"]; ok {
+		t.Error("orphaned rule should not be adopted")
+	}
+}
+
 func TestLogAlertFireMessage(t *testing.T) {
 	alerts := map[string]AlertConfig{
 		"error_spike": {
@@ -1657,4 +1765,3 @@ func TestLogAlertFireMessage(t *testing.T) {
 		t.Errorf("message = %q", msg)
 	}
 }
-

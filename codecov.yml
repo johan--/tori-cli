@@ -1,0 +1,13 @@
+coverage:
+  status:
+    project:
+      default:
+        flags:
+          - core
+    patch: off
+
+flags:
+  core:
+    paths:
+      - internal/agent/
+      - internal/protocol/

@@ -1,6 +1,13 @@
 # tori ─(•)>
 
-Remote server monitoring without the infrastructure. A single binary and an SSH connection — metrics, logs, and alerts for your Docker hosts.
+[![Go Report Card](https://goreportcard.com/badge/github.com/thobiasn/tori-cli)](https://goreportcard.com/report/github.com/thobiasn/tori-cli)
+[![Coverage (core)](https://codecov.io/gh/thobiasn/tori-cli/branch/main/graph/badge.svg?flag=core)](https://codecov.io/gh/thobiasn/tori-cli)
+[![GitHub Release](https://img.shields.io/github/v/release/thobiasn/tori-cli)](https://github.com/thobiasn/tori-cli/releases)
+[![License](https://img.shields.io/github/license/thobiasn/tori-cli)](LICENSE)
+
+Docker server monitoring without the stack. Metrics, logs, and alerts from your terminal. Single binary, minimal footprint, zero exposed ports, SSH-only.
+
+If you're running Docker and a full monitoring stack feels like overkill, tori gives you metrics, logs, and alerts in a single binary that uses less memory than most of the containers it watches. Install on your server, add a notification channel, and you're covered. tori watches your containers 24/7 and alerts you when something breaks, even when you're not connected. When you want to look, everything is right there in your terminal.
 
 **[toricli.sh](https://toricli.sh)** · [Releases](https://github.com/thobiasn/tori-cli/releases) · [Issues](https://github.com/thobiasn/tori-cli/issues)
 
@@ -8,14 +15,13 @@ Remote server monitoring without the infrastructure. A single binary and an SSH 
 
 ## Features
 
+- **No exposed ports** — all communication over SSH to a Unix socket. No HTTP server, nothing to firewall
+- **Single binary, minimal footprint** — one process, typically under 50MB of memory, SQLite for storage. No stack to deploy
+- **Alerting** — configurable rules for host metrics, container state, and log patterns. Email and webhook notifications, even when you're not connected
 - Host metrics — CPU, memory, disk, network, swap, load averages
 - Docker container monitoring — status, stats, health checks, restart tracking
-- Remote log tailing with regex search, log level filtering, match highlighting, and date/time filtering
-- Alerting with configurable rules, email (SMTP), and webhook notifications
-- SQLite storage with configurable retention
-- Multi-server support — monitor multiple remote hosts from one terminal
-- Single binary, zero runtime dependencies
-- No exposed ports — all communication over SSH
+- Log tailing with regex search, level filtering, match highlighting, and date/time range filters
+- Multi-server support — monitor multiple hosts from one terminal, switch instantly
 
 ## How It Works
 
@@ -54,29 +60,47 @@ tori has two parts. The **agent** runs on your server collecting metrics, tailin
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/thobiasn/tori-cli/main/deploy/install.sh | sudo sh
+```
+
+Edit `/etc/tori/config.toml` to track all containers and get notified when something breaks:
+
+```toml
+[docker]
+include = ["*"]    # track everything (or use patterns like "myapp-*")
+
+[alerts.container_down]
+condition = "container.state == 'exited'"
+for = "30s"
+severity = "critical"
+actions = ["notify"]
+
+# add [notify.email] or [[notify.webhooks]] — see Configuration below
+```
+
+Start the agent:
+
+```bash
 sudo systemctl enable --now tori
 ```
+
+That's it. tori is now collecting metrics, tailing logs, and alerting on your containers — even when you're not connected.
 
 ### On your machine
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/thobiasn/tori-cli/main/deploy/install.sh | sh -s -- --client
+tori user@your-server.com
 ```
 
-Add a server to `~/.config/tori/config.toml`:
+Or add servers to `~/.config/tori/config.toml` for persistent config:
 
 ```toml
 [servers.prod]
 host = "user@prod.example.com"
 ```
 
-Connect:
-
-```bash
-tori
-```
-
-No containers are tracked yet — press `t` on a container or compose group to start collecting metrics, logs, and alerts for it. You can also use `include`/`exclude` patterns in the agent config to auto-track containers on discovery (e.g. `include = ["*"]` to track everything). Tracking state is persisted and survives agent restarts.
+> [!TIP]
+> You can also selectively track containers from the TUI — press `t` on any container or compose group. Tracking state persists across agent restarts.
 
 ## Installation
 
@@ -96,7 +120,7 @@ curl -fsSL https://raw.githubusercontent.com/thobiasn/tori-cli/main/deploy/insta
 To install a specific version:
 
 ```bash
-sudo sh install.sh --version v1.0.0
+curl -fsSL https://raw.githubusercontent.com/thobiasn/tori-cli/main/deploy/install.sh | sudo sh -s -- --version v1.0.0
 ```
 
 After installation:
@@ -117,6 +141,17 @@ journalctl -u tori -f
 # reload config without restart (SIGHUP)
 sudo systemctl reload tori
 ```
+
+</details>
+
+<details>
+<summary><b>Arch Linux (AUR)</b></summary>
+
+```bash
+yay -S tori-cli-bin
+```
+
+Installs the binary, systemd service, and creates the tori user and directories.
 
 </details>
 
@@ -425,16 +460,24 @@ The `[theme]` section overrides individual TUI colors. By default all colors use
 | `graph_cpu` | `12` | CPU sparkline |
 | `graph_mem` | `13` | Memory sparkline |
 
+Because tori defaults to ANSI colors, it automatically inherits your terminal's color scheme:
+
+<img src="https://github.com/user-attachments/assets/59fdca1f-7d3e-489f-9028-076ef3385e23" alt="Tokyo Night" width="350"> <img src="https://github.com/user-attachments/assets/64054c43-b563-4199-9cc6-6ef86554692e" alt="Rosé Pine" width="350"> <img src="https://github.com/user-attachments/assets/ac245a78-48b7-4288-be21-230314ccf748" alt="Osaka Jade" width="350">
+
 ## Keybindings
 
-### Global
+### Navigation (all views)
 
 | Key | Action |
 |-----|--------|
-| `1` | Dashboard view |
-| `2` | Alerts view |
+| `j`/`k` | Up/down |
+| `gg`/`G` | Jump to top/bottom |
+| `Ctrl+d`/`Ctrl+u` | Half-page down/up |
+| `1`/`2` | Switch to dashboard/alerts view |
 | `+`/`-` | Zoom time window |
 | `S` | Switch server |
+| `y` | Yank to clipboard |
+| `Esc` | Back / clear filter |
 | `?` | Help |
 | `q` | Quit |
 
@@ -442,10 +485,7 @@ The `[theme]` section overrides individual TUI colors. By default all colors use
 
 | Key | Action |
 |-----|--------|
-| `j`/`k` | Navigate containers |
-| `gg`/`G` | Jump to top/bottom |
 | `{`/`}` | Jump to previous/next project group |
-| `Ctrl+d`/`Ctrl+u` | Half-page down/up |
 | `Enter` | Open detail view |
 | `Space` | Expand/collapse compose group |
 | `t` | Toggle tracking for container/group |
@@ -455,8 +495,6 @@ The `[theme]` section overrides individual TUI colors. By default all colors use
 | Key | Action |
 |-----|--------|
 | `Tab` | Switch focus between alerts and rules |
-| `j`/`k` | Navigate up/down |
-| `gg`/`G` | Jump to top/bottom |
 | `Enter` | Expand details |
 | `a` | Acknowledge alert |
 | `s` | Silence rule |
@@ -468,15 +506,10 @@ The `[theme]` section overrides individual TUI colors. By default all colors use
 
 | Key | Action |
 |-----|--------|
-| `j`/`k` | Scroll logs |
-| `Ctrl+d`/`Ctrl+u` | Half-page scroll |
-| `gg` | Jump to oldest |
-| `G` | Jump to latest |
 | `Enter` | Expand log entry |
 | `s` | Cycle log level filter (ERR → WARN → INFO → DBUG → all) |
 | `/` | Open filter dialog (regex search, date/time range) |
 | `i` | Toggle info overlay |
-| `Esc` | Clear active filter / back to dashboard |
 
 ## Updating
 
@@ -516,11 +549,11 @@ For client-only installs, just remove the binary (`~/.local/bin/tori` or `/usr/l
 
 **Log contents:** tori stores container logs in SQLite. These may contain sensitive application data (tokens, user info, errors with PII). The database file at `/var/lib/tori/tori.db` should have restrictive permissions and the retention policy should be set appropriately.
 
-## Operational Notes
+## Keeping Storage in Check
 
-**Storage and chatty containers:** All logs from tracked containers are stored in SQLite for the full `retention_days` window (default: 7 days). High-volume containers can grow the database significantly. If storage is a concern, reduce `retention_days` in the agent config. You can also be selective about which containers you track — the `t` key in the dashboard toggles tracking per-container, and only tracked containers have their logs stored.
+All logs from tracked containers are stored in SQLite for the full `retention_days` window (default: 7 days). High-volume containers can grow the database significantly. If storage is a concern, reduce `retention_days` in the agent config. You can also be selective about which containers you track — the `t` key in the dashboard toggles tracking per-container, and only tracked containers have their logs stored.
 
-**Log alert windows and retention:** Log alert `window` values must be shorter than your `retention_days` — logs outside the retention window have been pruned and can't be counted. In practice, keep windows short (minutes to hours) for responsive alerting.
+Log alert `window` values must be shorter than your `retention_days` — logs outside the retention window have been pruned and can't be counted. In practice, keep windows short (minutes to hours) for responsive alerting.
 
 ## Troubleshooting
 

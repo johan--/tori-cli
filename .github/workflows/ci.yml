@@ -21,3 +21,13 @@ jobs:
 
       - name: Test
         run: go test -race ./...
+
+      - name: Coverage (core packages)
+        run: go test -coverprofile=coverage.out ./internal/agent/... ./internal/protocol/...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.out
+          flags: core
+          token: ${{ secrets.CODECOV_TOKEN }}
