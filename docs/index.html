@@ -121,6 +121,23 @@
   /* ── INSTALL ── */
   .install-wrap { margin-bottom: 1rem; }
 
+  .install-label {
+    font-size: 0.9rem;
+    color: #e2e2e2;
+    font-weight: 500;
+    margin-bottom: 0.4rem;
+    margin-top: 1rem;
+  }
+
+  .install-label:first-child { margin-top: 0; }
+
+  .install-step {
+    color: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    margin-right: 0.4rem;
+  }
+
   .install {
     display: flex;
     align-items: center;
@@ -144,12 +161,10 @@
 
   .cmd {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.82rem;
+    font-size: 0.7rem;
     color: #ccc;
     flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    word-break: break-all;
   }
 
   .copy {
@@ -169,14 +184,15 @@
 
   /* ── DEMO ── */
   .demo {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.5rem; 
+    overflow: hidden;
   }
 
   .demo video {
     width: 100%;
+    display: block;
     border-radius: 6px;
     border: 1px solid #2a2a2a;
-    display: block;
   }
 
   .demo-note {
@@ -284,8 +300,7 @@
     <a class="logo" href="/">tori</a>
     <span class="nav-bird"><span class="sep">─(<span class="eye">•</span>)></span></span>
     <div class="nav-links">
-      <a href="https://github.com/thobiasn/tori-cli#readme" target="_blank" rel="noopener">docs</a>
-      <a href="https://github.com/thobiasn/tori-cli" target="_blank" rel="noopener">github</a>
+      <a href="https://github.com/thobiasn/tori-cli" target="_blank" rel="noopener">docs & github</a>
     </div>
   </nav>
 
@@ -294,26 +309,23 @@
   <p class="sub">One binary, barely any memory. Metrics, logs, and alerts across all your hosts. Runs 24/7 on the server, notifies you when things break, whether you're connected or not.</p>
 
   <div class="install-wrap">
+    <p class="install-label"><span class="install-step">1.</span> On your server</p>
     <div class="install" onclick="copyCmd(this)">
-      <span class="prompt">$</span>
       <span class="cmd">curl -fsSL https://raw.githubusercontent.com/thobiasn/tori-cli/main/deploy/install.sh | sudo sh</span>
       <span class="copy">copy</span>
     </div>
-    <p class="install-note">server install</p>
+    <p class="install-label"><span class="install-step">2.</span> On your machine</p>
     <div class="install" onclick="copyCmd(this)">
-      <span class="prompt">$</span>
       <span class="cmd">curl -fsSL https://raw.githubusercontent.com/thobiasn/tori-cli/main/deploy/install.sh | sh -s -- --client</span>
       <span class="copy">copy</span>
     </div>
-    <p class="install-note">client install · no root needed · linux, macOS, WSL</p>
+    <p class="install-note">no root needed · linux, macOS, WSL</p>
   </div>
 
   <div class="demo">
-    <video autoplay loop muted playsinline poster="tori-preview-poster.png" width="772" height="802">
+    <video autoplay loop muted playsinline>
       <source src="tori-preview.webm" type="video/webm">
-      <source src="tori-preview.mp4" type="video/mp4">
     </video>
-    <noscript><img src="tori-preview-poster.png" alt="tori terminal UI showing host metrics, container stats, and log tailing over SSH" width="772" height="802" style="width:100%;max-width:560px;border-radius:6px;border:1px solid #2a2a2a"></noscript>
     <p class="demo-note">ANSI colors — inherits your terminal theme</p>
   </div>
 
